@@ -14,3 +14,6 @@ pip install matplotlib
 `SIFT/01.png` and `SIFT/02.png` from [repo](https://github.com/rmislam/PythonSIFT.git), which has source code of SIFT.
 
 And `main.py` is my homework.
+
+## KLT
+You need to run `KLT/camera_calibration.py` to get camera intrinsic parameters K. And put K into `main.py` for feature point tracking and camera position estimation.
