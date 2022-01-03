@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 
 import torch.nn.functional as F  # useful stateless functions
-
+from copy import deepcopy
 from part1 import device, dtype, loader_train, print_every, loader_val, loader_test
-
+from models.LeNet5 import LeNet5
+from models.ResNet import resnet18, resnet34, resnet50, resnet101, resnet152
 
 '''
 ------------------------------------------------------------------------------------------------------------------------
@@ -75,6 +76,7 @@ improve your performance. You are not required to implement any of these, but do
 Have fun and happy training!
 '''
 
+
 def check_accuracy_part34(loader, model):
     if loader.dataset.train:
         print('Checking accuracy on validation set')
@@ -93,12 +95,15 @@ def check_accuracy_part34(loader, model):
             num_samples += preds.size(0)
         acc = float(num_correct) / num_samples
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+    return acc
+
 
 def flatten(x):
-    N = x.shape[0] # read in N, C, H, W
+    N = x.shape[0]  # read in N, C, H, W
     return x.view(N, -1)  # "flatten" the C * H * W values into a single vector per image
 
-def train_part34(model, optimizer, epochs=1):
+
+def train_part34(model, optimizer, epochs=1, log=True):
     """
     Train a model on CIFAR-10 using the PyTorch Module API.
 
@@ -131,7 +136,7 @@ def train_part34(model, optimizer, epochs=1):
             # computed by the backwards pass.
             optimizer.step()
 
-            if t % print_every == 0:
+            if t % print_every == 0 and log:
                 print('Iteration %d, loss = %.4f' % (t, loss.item()))
                 check_accuracy_part34(loader_val, model)
                 print()
@@ -150,18 +155,46 @@ def train_part34(model, optimizer, epochs=1):
 ################################################################################
 model = None
 optimizer = None
+
 # ***** START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-pass
+learning_rates = [1e-3, 1e-2, 1e-1]
+
+models = {"LeNet5": LeNet5,  # 70+
+          "ResNet18": resnet18(False),  # 80.60
+          "ResNet34": resnet34(False),
+          "ResNet50": resnet50(False),
+          "ResNet101": resnet101(False),
+          "ResNet152": resnet152(False)}
+
+best_model = None
+best_model_name = None
+best_val_acc = 0
+best_opt = None
+
+for lr in learning_rates:
+    for model_name, model in models.items():
+        model = deepcopy(model)
+        model.to(device)
+        optimizers = {"Nesterov": optim.SGD(model.parameters(), lr=lr, momentum=0.9, nesterov=True),  # validation 70+
+                      "Adam": optim.Adam(model.parameters(), lr=lr),  # Poor results
+                      "Adagrad": optim.Adagrad(model.parameters(), lr=lr),  # validation 72.5
+                      "RMSprop": optim.RMSprop(model.parameters(), lr=lr)}  # Poor results
+        for opt_name, optimizer in optimizers.items():
+            print(f"==========lr: {lr}, model: {model_name}, opt: {opt_name}==========")
+            train_part34(model, optimizer, epochs=10, log=False)
+            acc = check_accuracy_part34(loader_val, model)
+            if acc > best_val_acc:
+                best_val_acc = acc
+                best_model = model
+                best_model_name = model_name
+                best_opt = opt_name
 
 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
 ################################################################################
 #                                 END OF YOUR CODE
 ################################################################################
-
-# You should get at least 70% accuracy
-train_part34(model, optimizer, epochs=10)
 
 '''
 Describe what you did
@@ -181,11 +214,3 @@ Now that we've gotten a result we're happy with, we test our final model on the 
 
 best_model = model
 check_accuracy_part34(loader_test, best_model)
-
-
-
-
-
-
-
-
